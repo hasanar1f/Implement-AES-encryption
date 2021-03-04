@@ -3,24 +3,11 @@ from operator import sub
 from bitvector_demo import AES_modulus
 from numpy.lib.function_base import append
 
-
-debug = True
-
-if debug:
-    key = "Thats my Kung Fu"
-else:
-    key = input("Enter the ASCII key string: ")
-
-if (len(key)<16) :
-    key = "{:0<16}".format(key)
-    print(key)
-elif (len(key)>16) :
-    key = key[0:16]
-    print(key)
+from BitVector import * 
+import numpy as np
 
 
-# generating key for all round
-
+# FUNCTION :::::::::::::::::::::::::::::::::;
 def xor(a,b):
 
     ret = []
@@ -29,6 +16,30 @@ def xor(a,b):
 
     return ret 
 
+def print_matrix(m) :
+
+    for i in range(4) :
+        for j in range(4) :
+            print(m[i][j].get_bitvector_in_hex(),end=" ")
+        print()
+
+def multiply(X, Y):
+    ret = []
+    AES_modulus = BitVector(bitstring='100011011')
+    for i in range(4):
+        t = []
+        for j in range(4):
+            bv3 = BitVector(hexstring="00")
+            for k in range(4):
+                bv1 = X[i][k]
+                bv2 = Y[k][j]
+                bv3 =  bv3.__xor__(bv1.gf_multiply_modular(bv2, AES_modulus, 8) )
+            t.append(bv3)
+        ret.append(t)
+    
+    return ret
+
+# DECLARATION :::::::::::::::::::::::::::::::::::::::::
 
 Sbox = (
     0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
@@ -49,8 +60,48 @@ Sbox = (
     0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16,
 )
 
-from BitVector import * 
-import numpy as np
+Mixer = [
+    [BitVector(hexstring="02"), BitVector(hexstring="03"), BitVector(hexstring="01"), BitVector(hexstring="01")],
+    [BitVector(hexstring="01"), BitVector(hexstring="02"), BitVector(hexstring="03"), BitVector(hexstring="01")],
+    [BitVector(hexstring="01"), BitVector(hexstring="01"), BitVector(hexstring="02"), BitVector(hexstring="03")],
+    [BitVector(hexstring="03"), BitVector(hexstring="01"), BitVector(hexstring="01"), BitVector(hexstring="02")]
+]
+
+
+
+
+# Input Output ::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+debug = True
+
+if debug:
+    key = "Thats my Kung Fu"
+else:
+    key = input("Enter the ASCII key string: ")
+
+if (len(key)<16) :
+    key = "{:0<16}".format(key)
+    
+elif (len(key)>16) :
+    key = key[0:16]
+    
+
+if debug : plain_text = "Two One Nine TwoTwo One Nine TwO peeepee"
+else: plain_text = input("Enter text to encrypt: ")
+
+chunk_size = 16
+
+
+if len(plain_text)%chunk_size != 0 :
+
+    to_add = (int(len(plain_text)/chunk_size)+1)*chunk_size
+    plain_text = plain_text.ljust( to_add , " " )
+
+
+chunks = [plain_text[i:i+chunk_size] for i in range(0, len(plain_text), chunk_size)]
+
+
+# KEY GENERATION FOR 10 ROUND ::::::::::::::::::::::::::::::::::
 
 w = []
 hex_key = []
@@ -58,10 +109,7 @@ for k in key:
     hex_key.append( hex( ord(k) ) )
 
 
-
-
 w = [hex_key[0:4],hex_key[4:8],hex_key[8:12],hex_key[12:16]]
-#round_const = [hex(1),hex(0),hex(0),hex(0)] 
 round_const = [1,0,0,0]
 
 
@@ -87,13 +135,88 @@ for i in range(10) :
 
     AES_modulus = BitVector(bitstring='100011011')
     round_const[0] =  BitVector(intVal=round_const[0]).gf_multiply_modular(BitVector(hexstring = "02"),AES_modulus,8).intValue()
-    print(round_const[0])
+
+
+# Encryption :::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+Encrypted_MSG = []
+
+for c in chunks:
+
+    #converting into Hex
+    plain_text_hex = []
+    for s in c:
+        plain_text_hex.append( hex( ord(s) ))
+
+    #preparing matrix
+    PlaneTextMatrix = []
+
+    for round_count in range(11) :
+
+        RoundMatrix = []
+
+        for i in range(4) :
+            t = []
+            p = []
+            for j in range(4) :
+                t.append( BitVector( hexstring = plain_text_hex[4*j+i][2:]) )
+                p.append( BitVector( hexstring = w[4*round_count+j][i][2:]) )
+
+            if(round_count==0) : PlaneTextMatrix.append(t)
+            RoundMatrix.append(p)
+
+
+        # print()
+        # print("ROUND :",round_count )
+
+        if round_count != 0 :
+
+            # substitute byte
+            for l in range(4) :
+                for r in range(4) :
+                    s = Sbox[PlaneTextMatrix[l][r].intValue()]
+                    s = BitVector(intVal=s, size=8)
+                    PlaneTextMatrix[l][r] = s
+
+
+            # print("Substitution bytes: ")
+            # print_matrix(PlaneTextMatrix)
+
+
+
+
+
+
+            for l in range(4) :
+                for r in range(l) :
+                        PlaneTextMatrix[l].append(PlaneTextMatrix[l].pop(0))
+
+            # print("Shift Row: ")
+            # print_matrix(PlaneTextMatrix)
+
+
+            
+
+            if round_count != 10 :
+                PlaneTextMatrix = multiply(Mixer,PlaneTextMatrix)
+                # print("Mix Column")
+                # print_matrix(PlaneTextMatrix)
+
+
+        for l in range(4) :
+            for r in range(4) :
+                PlaneTextMatrix[l][r] = PlaneTextMatrix[l][r].__xor__(RoundMatrix[l][r])
+
+
+
+    # print("chunk : [",c,"]")
+    # print_matrix(PlaneTextMatrix)
+
+    Encrypted_MSG.append(PlaneTextMatrix)
+
+  
+
+# Encryption DONE ::::::::::::::::::::::::::::::::::::::::::::::
+
 
     
-if debug:
-    ii = 0
-    for i in w:
-        if(ii%4==0): print()
-        print(i, end=" ")
-        ii = ii+1
-
