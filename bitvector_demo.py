@@ -75,8 +75,4 @@ print(s.get_bitvector_in_hex())
 
 AES_modulus = BitVector(bitstring='100011011')
 
-bv1 = BitVector(hexstring="02")
-bv2 = BitVector(hexstring="63")
-bv3 = bv1.gf_multiply_modular(bv2, AES_modulus, 8)
-print(bv3)
 

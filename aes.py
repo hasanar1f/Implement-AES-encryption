@@ -7,9 +7,16 @@ from BitVector import *
 import numpy as np
 import time 
 
+# Settings :::::::::::::::::::::::::::::::::
+
+anyFile = False
+
 debug = True
 
-# FUNCTION :::::::::::::::::::::::::::::::::;
+chunk_size = 16
+
+
+# FUNCTION :::::::::::::::::::::::::::::::::
 
 def print_ascii(m) :
 
@@ -101,20 +108,40 @@ if (len(key)<16) :
 elif (len(key)>16) :
     key = key[0:16]
     
+if not anyFile:
 
-if debug : plain_text = "Two One Nine Two"
-else: plain_text = input("Enter text to encrypt: ")
+    if debug : plain_text = "Two One Nine Two"
+    else: plain_text = input("Enter text to encrypt: ")
 
-chunk_size = 16
+    if len(plain_text)%chunk_size != 0 :
 
-
-if len(plain_text)%chunk_size != 0 :
-
-    to_add = (int(len(plain_text)/chunk_size)+1)*chunk_size
-    plain_text = plain_text.ljust( to_add , " " )
+        to_add = (int(len(plain_text)/chunk_size)+1)*chunk_size
+        plain_text = plain_text.ljust( to_add , " " )
 
 
-chunks = [plain_text[i:i+chunk_size] for i in range(0, len(plain_text), chunk_size)]
+    chunks = [plain_text[i:i+chunk_size] for i in range(0, len(plain_text), chunk_size)]
+
+# I/O For file ::::::::::::::::::::::::::::::::::::::::::::::::::
+
+if anyFile:
+
+    input_file = open("one.txt",'rb')
+    output_file = open("encrypted_file_hex.txt",'wb')
+    new_file = open("new_file.txt",'wb')
+
+    chunks = []
+
+    while True :
+        data = input_file.read(16)
+        if data :
+            chk = len(data)%chunk_size
+            if chk:
+                data += bytes(chunk_size-chk)
+            chunks.append(data)
+        else : break
+
+    input_file.close()
+
 
 start  = time.time()
 # KEY GENERATION FOR 10 ROUND ::::::::::::::::::::::::::::::::::
@@ -162,15 +189,29 @@ start = time.time()
 Encrypted_MSG = []
 Plain_Text_hex = []
 
+#print("chunk size : ",len(chunks))
+
 for c in chunks:
 
     #converting into Hex
-    plain_text_hex = []
-    for s in c:
-        plain_text_hex.append( hex( ord(s) ))
-    
-    Plain_Text_hex.append(plain_text_hex)
+    if not anyFile :
+ 
+        plain_text_hex = []
+        for s in c:
+            plain_text_hex.append( hex( ord(s) ))
+        
+        Plain_Text_hex.append(plain_text_hex)
 
+    else :
+
+        plain_text_hex = []
+        for s in c:
+            plain_text_hex.append( hex(s) )
+    
+   
+
+    #print(plain_text_hex)
+    
     #preparing matrix
     PlaneTextMatrix = []
 
@@ -232,9 +273,6 @@ for c in chunks:
 
 
 
-    # print("chunk : [",c,"]")
-    # print_matrix(PlaneTextMatrix)
-
     Encrypted_MSG.append(PlaneTextMatrix)
 
   
@@ -242,6 +280,38 @@ end = time.time()
 en_time = end - start
 # Encryption DONE ::::::::::::::::::::::::::::::::::::::::::::::
 
+# Report ::::
+
+if not anyFile:
+    print("\n\nKey: ")
+    print(key)
+    print_list(hex_key)
+
+    print("\nInput Text: ")
+    print(plain_text)
+    for i in Plain_Text_hex:
+        print_list(i)
+
+    print("\nCipher Text: ")
+
+    for e in Encrypted_MSG:
+        print_matrix(e)
+    print()
+
+    print("\nCipher Text in ASCII")
+    for e in Encrypted_MSG:
+        print_ascii(e)
+    print()
+else :
+    print("\nFile encryption DONE!\n")
+
+    for e in Encrypted_MSG :
+        for i in range(4):
+            for j in range(4):
+                e[j][i].write_to_file(output_file)
+
+    
+    output_file.close()
 # Decryption :::::::::::::::::: STARTS HERE ::::::::::::::::::::::::
 
 
@@ -275,9 +345,10 @@ Decrypted_MSG = []
 
 start = time.time()
 
-for e in Encrypted_MSG:
 
-    E = e
+for E in Encrypted_MSG:
+
+
 
     for round_count in reversed(range(11)) :
 
@@ -325,38 +396,26 @@ de_time = end - start
 
 # Report :::::::::
 
+if not anyFile:
 
+    print("\n\nDeciphered Text:")
+    for d in Decrypted_MSG:
+        print_matrix(d)
+    print()
 
-print("\n\nKey: ")
-print(key)
-print_list(hex_key)
+    print("\nDecipher Text in ASCII")
+    for d in Decrypted_MSG:
+        print_ascii(d)
+    print()
+else :
 
-print("\nInput Text: ")
-print(plain_text)
-for i in Plain_Text_hex:
-    print_list(i)
+    for d in Decrypted_MSG:
+        for i in range(4):
+            for j in range(4):
+                d[j][i].write_to_file(new_file)
+    new_file.close()
 
-print("\nCipher Text: ")
-
-for e in Encrypted_MSG:
-    print_matrix(e)
-print()
-
-print("\nCipher Text in ASCII")
-for e in Encrypted_MSG:
-    print_ascii(e)
-print()
-
-print("\n\nDeciphered Text:")
-for d in Decrypted_MSG:
-    print_matrix(d)
-print()
-
-print("\nDecipher Text in ASCII")
-for d in Decrypted_MSG:
-    print_ascii(d)
-print()
-
+    print("\nFile decryption DONE!\n")
 
 print("\nExecution Time: ")
 print("Key Scheduling: ",ks_time)
