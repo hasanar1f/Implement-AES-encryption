@@ -5,9 +5,25 @@ from numpy.lib.function_base import append
 
 from BitVector import * 
 import numpy as np
+import time 
 
+debug = True
 
 # FUNCTION :::::::::::::::::::::::::::::::::;
+
+def print_ascii(m) :
+
+    for i in range(4) :
+        for j in range(4) :
+            print(m[j][i].get_bitvector_in_ascii(),end="")
+    print()
+    
+
+def print_list(m) :
+    for i in m:
+        print(i[2:],end=" ")
+    print()
+
 def xor(a,b):
 
     ret = []
@@ -20,8 +36,8 @@ def print_matrix(m) :
 
     for i in range(4) :
         for j in range(4) :
-            print(m[i][j].get_bitvector_in_hex(),end=" ")
-        print()
+            print(m[j][i].get_bitvector_in_hex(),end=" ")
+    print()
 
 def multiply(X, Y):
     ret = []
@@ -72,7 +88,7 @@ Mixer = [
 
 # Input Output ::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-debug = True
+
 
 if debug:
     key = "Thats my Kung Fu"
@@ -100,7 +116,7 @@ if len(plain_text)%chunk_size != 0 :
 
 chunks = [plain_text[i:i+chunk_size] for i in range(0, len(plain_text), chunk_size)]
 
-
+start  = time.time()
 # KEY GENERATION FOR 10 ROUND ::::::::::::::::::::::::::::::::::
 
 w = []
@@ -136,10 +152,15 @@ for i in range(10) :
     AES_modulus = BitVector(bitstring='100011011')
     round_const[0] =  BitVector(intVal=round_const[0]).gf_multiply_modular(BitVector(hexstring = "02"),AES_modulus,8).intValue()
 
+end = time.time()
+ks_time = end - start
 
+
+start = time.time()
 # Encryption :::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 Encrypted_MSG = []
+Plain_Text_hex = []
 
 for c in chunks:
 
@@ -147,6 +168,8 @@ for c in chunks:
     plain_text_hex = []
     for s in c:
         plain_text_hex.append( hex( ord(s) ))
+    
+    Plain_Text_hex.append(plain_text_hex)
 
     #preparing matrix
     PlaneTextMatrix = []
@@ -215,7 +238,8 @@ for c in chunks:
     Encrypted_MSG.append(PlaneTextMatrix)
 
   
-
+end = time.time()
+en_time = end - start
 # Encryption DONE ::::::::::::::::::::::::::::::::::::::::::::::
 
 # Decryption :::::::::::::::::: STARTS HERE ::::::::::::::::::::::::
@@ -249,11 +273,11 @@ InvMixer = [
 
 Decrypted_MSG = []
 
+start = time.time()
 
-for E in Encrypted_MSG:
+for e in Encrypted_MSG:
 
-    print("BEFORE::: ")
-    print_matrix(E)
+    E = e
 
     for round_count in reversed(range(11)) :
 
@@ -295,6 +319,46 @@ for E in Encrypted_MSG:
     
     Decrypted_MSG.append(E)
         
-
+end = time.time()
+de_time = end - start
 # Decryption DONE :::::::::::::::::::::::::::::
 
+# Report :::::::::
+
+
+
+print("\n\nKey: ")
+print(key)
+print_list(hex_key)
+
+print("\nInput Text: ")
+print(plain_text)
+for i in Plain_Text_hex:
+    print_list(i)
+
+print("\nCipher Text: ")
+
+for e in Encrypted_MSG:
+    print_matrix(e)
+print()
+
+print("\nCipher Text in ASCII")
+for e in Encrypted_MSG:
+    print_ascii(e)
+print()
+
+print("\n\nDeciphered Text:")
+for d in Decrypted_MSG:
+    print_matrix(d)
+print()
+
+print("\nDecipher Text in ASCII")
+for d in Decrypted_MSG:
+    print_ascii(d)
+print()
+
+
+print("\nExecution Time: ")
+print("Key Scheduling: ",ks_time)
+print("Encryption Time: ",en_time)
+print("Decryption Time: ",de_time)
